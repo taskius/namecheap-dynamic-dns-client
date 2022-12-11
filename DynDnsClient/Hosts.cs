@@ -25,6 +25,7 @@ namespace DynDnsClient
             hostsWatcher.Changed += (sender, e) => FireChanged();
             hostsWatcher.Renamed += (sender, e) => FireChanged();
             hostsWatcher.EnableRaisingEvents = true;
+            hostsWatcher.NotifyFilter = NotifyFilters.Size;
 
             Log.InfoFormat("Watching hosts file '{0}' in directory '{1}' for changes", FileName, Directories.CurrentDirectory);
         }
