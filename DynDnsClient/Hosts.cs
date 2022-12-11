@@ -1,8 +1,9 @@
-﻿using System;
+﻿using log4net;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using log4net;
 
 namespace DynDnsClient
 {
@@ -11,7 +12,7 @@ namespace DynDnsClient
         private const string FileName = "Hosts.txt";
 
         private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        
+
         private readonly FileSystemWatcher hostsWatcher;
 
         private EventHandler changedHandler;
@@ -42,11 +43,21 @@ namespace DynDnsClient
                 return new string[0];
             }
 
-            return File.ReadAllLines(FilePath)
+            return ReadAllLines()
                 .Select(host => host.Trim())
                 .Where(host => !string.IsNullOrWhiteSpace(host))
                 .Where(host => !host.StartsWith("#"))
                 .ToArray();
+        }
+
+        private IEnumerable<string> ReadAllLines()
+        {
+            using (var stream = File.Open(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = new StreamReader(stream))
+                while (!reader.EndOfStream)
+                {
+                    yield return reader.ReadLine();
+                }
         }
 
         private void FireChanged()
