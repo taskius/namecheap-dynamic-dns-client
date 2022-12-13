@@ -1,10 +1,11 @@
-﻿using System;
+﻿using DynDnsClient.Properties;
+using log4net;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Threading;
-using DynDnsClient.Properties;
-using log4net;
 
 namespace DynDnsClient
 {
@@ -24,7 +25,7 @@ namespace DynDnsClient
             this.savedData = savedData;
             wanAddressResolver = new WanAddressResolver();
             dnsUpdater = new DnsUpdater();
-            
+
             hosts = new Hosts();
             hosts.Changed += UpdateDueToChangedHosts;
         }
@@ -32,7 +33,7 @@ namespace DynDnsClient
         public void Run()
         {
             Log.Info("Running client");
-            
+
             timer = new Timer(UpdateDueToTimeout, null, TimeSpan.Zero, Settings.Default.Period);
         }
 
@@ -41,7 +42,7 @@ namespace DynDnsClient
             string[] addedHosts = hosts.Read()
                 .Except(savedData.Hosts)
                 .ToArray();
-            
+
             if (addedHosts.Any())
             {
                 Log.InfoFormat("Hosts file changed, {0} hosts where added", addedHosts.Length);
@@ -90,6 +91,13 @@ namespace DynDnsClient
 
         private bool Update(IEnumerable<string> hosts)
         {
+            var ignoredNetworkConnection = IgnoreNetworkConnection();
+            if (ignoredNetworkConnection != null)
+            {
+                Log.InfoFormat("Stopping update as connected to an ignored network connection: '{0}'", ignoredNetworkConnection);
+                return false;
+            }
+
             // Update Namecheap records
             DnsUpdateResult result = dnsUpdater.Update(
                 Settings.Default.Domain,
@@ -106,6 +114,37 @@ namespace DynDnsClient
             }
 
             return result.IsSuccess;
+        }
+
+        /// <summary>
+        /// Uses the names from "Control Panel\Network and Internet\Network Connections" that are stored in a comma separated list in the config to determine
+        /// whether to ignore the network connection. This is useful when connected to a VPN.
+        /// </summary>
+        internal static string IgnoreNetworkConnection()
+        {
+            var networkConnectionsToIgnore = GetNetworkConnectionsToIgnore();
+
+            if (NetworkInterface.GetIsNetworkAvailable() && networkConnectionsToIgnore.Count != 0)
+            {
+                var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+                foreach (var networkInterface in interfaces)
+                {
+                    if (networkConnectionsToIgnore.Contains(networkInterface.Name) && networkInterface.OperationalStatus == OperationalStatus.Up)
+                    {
+                        return networkInterface.Name;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static List<string> GetNetworkConnectionsToIgnore()
+        {
+            return Settings.Default.IgnoredNetworkConnections
+                .Split(',')
+                .ToList();
         }
 
         #region IDisposable Members

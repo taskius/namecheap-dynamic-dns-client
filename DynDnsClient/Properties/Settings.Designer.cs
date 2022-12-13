@@ -49,5 +49,14 @@ namespace DynDnsClient.Properties {
                 return ((string)(this["Password"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string IgnoredNetworkConnections {
+            get {
+                return ((string)(this["IgnoredNetworkConnections"]));
+            }
+        }
     }
 }
